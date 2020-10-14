@@ -15,13 +15,14 @@ export interface RedisOptions {
  * Reads from redis data source asynchonrously to a dataframe.
  */
 export interface IAsyncRedisDataLoader {
-    load (symbolKey: string, fromDate: Date, toDate: Date): Promise<IDataFrame<number, any>>;
+    load (key: string, fromDate: Date, toDate: Date): Promise<IDataFrame<number, any>>;
+    write (key: string, field: string, value: string): IAsyncRedisDataLoader;
 }
 
 export class RedisClient {
     static instance: any;
 
-    constructor(options: RedisOptions) {
+    constructor(options?: RedisOptions | null | undefined) {
         if (!RedisClient.instance)
             RedisClient.instance = redis.createClient(options);
     }
@@ -36,9 +37,8 @@ export class RedisClient {
         // if (args.length >= 3)
         //     targetValue = args[2];
     
-        var retValue = null;
         try {
-            retValue = await new Promise((resolve, reject) => {
+            var retValue = await new Promise((resolve, reject) => {
     
                 // @ts-ignore
                 var cb = function (err, value) {
@@ -55,7 +55,7 @@ export class RedisClient {
         catch (err) {
             console.error(err);
         }
-        return retValue;
+        return null;
     }
 
     async exists (key: string) {
@@ -71,7 +71,7 @@ export class RedisClient {
         return await this.promisify(RedisClient.instance.hset, key, field, value);
     }
     
-    async hget (key: string, field: string, fallbackValue: string) {
+    async hget (key: string, field: string, fallbackValue?: string | undefined) {
         var value = await this.promisify(RedisClient.instance.hget, key, field);
         return value || fallbackValue;
     }
@@ -152,9 +152,21 @@ export class RedisClient {
         columnNames.push('Close');
         columnNames.push('High');
         columnNames.push('Low');
+        columnNames.push('Volume');
 
         for (var i = 0; i < dateStringArray.length; ++i) {
             let row: string[] = new Array();
+            let field = dateStringArray[i];
+
+            let tmpStr:any = await this.hget(key, field);
+            if (tmpStr) {
+                let obj: any = JSON.parse(tmpStr);
+                row.push(obj.O);
+                row.push(obj.C);
+                row.push(obj.H);
+                row.push(obj.L);
+                row.push(obj.V);
+            }
         }
         return new DataFrame<number, any>({
             rows: rows,
@@ -171,67 +183,72 @@ class AsyncRedisDataLoader implements IAsyncRedisDataLoader {
 
     static client: RedisClient;
 
-    constructor(options: RedisOptions) {
+    constructor(options?: RedisOptions | null | undefined) {
         if (!AsyncRedisDataLoader.client)
             AsyncRedisDataLoader.client = new RedisClient(options);
     }
 
 
-    async load (symbolKey: string, fromDate: Date, toDate: Date): Promise<IDataFrame<number, any>> {
-        return AsyncRedisDataLoader.client.load(symbolKey, fromDate, toDate);
+    async load (key: string, fromDate: Date, toDate: Date): Promise<IDataFrame<number, any>> {
+        return AsyncRedisDataLoader.client.load(key, fromDate, toDate);
     } 
+
+    write (key: string, field: string, value: string): IAsyncRedisDataLoader {
+        AsyncRedisDataLoader.client.hset(key, field, value);
+        return this;
+    }
 }
 
 /**
  * 
  */
-export interface ISyncRedisReader {
+// export interface ISyncRedisReader {
 
-    load (symbolKey: string, fromDate: Date, toDate: Date): IDataFrame<number, any>;
-}
+//     load (key: string, fromDate: Date, toDate: Date): IDataFrame<number, any>;
+// }
 
-/**
- * @hidden
- * Reads a file synchonrously to a dataframe.
- */
-class SyncRedisDataLoader implements ISyncRedisReader {
+// /**
+//  * @hidden
+//  * Reads a file synchonrously to a dataframe.
+//  */
+// class SyncRedisDataLoader implements ISyncRedisReader {
 
-    static client: RedisClient;
+//     static client: RedisClient;
 
-    constructor(options: RedisOptions) {
-        if (!SyncRedisDataLoader.client)
-            SyncRedisDataLoader.client = new RedisClient(options);
-    }
+//     constructor(options: RedisOptions) {
+//         if (!SyncRedisDataLoader.client)
+//             SyncRedisDataLoader.client = new RedisClient(options);
+//     }
 
-    load (symbolKey: string, fromDate: Date, toDate: Date): IDataFrame<number, any> {
-        async function syncLoad() {
-            let result = await SyncRedisDataLoader.client.load(symbolKey, fromDate, toDate);
-            return result;
-        }
-        // @ts-ignore
-        let result: IDataFrame<number, any> = syncLoad();
-        return result;
-    } 
-}
+//     load (key: string, fromDate: Date, toDate: Date): IDataFrame<number, any> {
+//         async function syncLoad() {
+//             let result: IDataFrame<number, any> = await SyncRedisDataLoader.client.load(key, fromDate, toDate);
+//             return result;
+//         }
+//         // @ts-ignore
+//         let result: IDataFrame<number, any> = syncLoad();
+//         return result;
+//     } 
+// }
 
 //
 // Augmuent the data-forge namespace to add new functions.
 //
 declare module "data-forge" {
 
-    function fromRedis (filePath: string): IAsyncRedisDataLoader;
+    function fromRedis (options?: RedisOptions | null | undefined): IAsyncRedisDataLoader;
 
-    export function fromRedisSync (filePath: string): ISyncRedisReader    
+    //export function fromRedisSync (filePath: string): ISyncRedisReader    
 }
 
-export function fromRedis (options: RedisOptions): IAsyncRedisDataLoader {
+export function fromRedis (options?: RedisOptions | null | undefined): IAsyncRedisDataLoader {
     return new AsyncRedisDataLoader(options);
 }
 
-/** */
-export function fromRedisSync(options: RedisOptions): ISyncRedisReader {
-    return new SyncRedisDataLoader(options);
-}
+// /** */
+// export function fromRedisSync(options: RedisOptions): ISyncRedisReader {
+//     return new SyncRedisDataLoader(options);
+// }
 
 (dataForge as any).fromRedis = fromRedis;
-(dataForge as any).fromRedisSync = fromRedisSync;
+// (dataForge as any).fromRedisSync = fromRedisSync;
