@@ -81,8 +81,81 @@ export class RedisClient {
         return value || fallbackValue;
     }
 
-    async load (key: string, fromDate: Date, toDate: Date) {
+    static getDateStringArray (date : Date, toDate: Date) {
+        let array: string[] = new Array();
 
+        if (toDate < date)
+            new Error("The from-date should be before the to-date");
+
+        let fromDay = date.getDate();
+        let fromYear = date.getFullYear();
+        let fromMonth = date.getMonth();
+
+        let toDay = toDate.getDate();
+        let toYear = toDate.getFullYear();
+        let toMonth = toDate.getMonth();
+
+        for (var x = fromYear; x <= toYear; ++x) {
+            for (var y = fromMonth; y <= toMonth; ++y) {
+                let maxDate = 31;
+                switch (y) {
+                    // case 1:
+                    //     break;
+                    case 2:
+                        // just to make things simple
+                        maxDate = 29;
+                        break;
+                    // case 3:
+                    //     break;
+                    case 4:
+                        // break;
+                    // case 5:
+                    //     break;
+                    case 6:
+                        // break;
+                    case 7:
+                        // break;
+                    // case 8:
+                    //     break;
+                    case 9:
+                        // break;
+                    // case 10:
+                    //     break;
+                    case 11:
+                        maxDate = 30;
+                        break;
+                    // case 12:
+                    //     break;                                                                                                                        
+                }
+
+                let fromThisDate = 1;
+                let toThisDate = maxDate;
+                if (y == toMonth && x == toYear) {
+                    fromThisDate = fromDay;
+                    toThisDate = toDay;
+                }
+
+                for (var z = fromThisDate; z <= toThisDate; ++z) {
+                    array.push(x + '-' + y + '-' + z);
+                }
+            }
+        }
+        return array;
+    }
+
+    async load (key: string, fromDate: Date, toDate: Date, formater?: any) {
+        // supposely the data string is in DDDD-MM-DD format
+        let dateStringArray = RedisClient.getDateStringArray(fromDate, toDate);
+        let rows: string[][] = new Array();
+        let columnNames: string[] = new Array();
+        columnNames.push('Open');
+        columnNames.push('Close');
+        columnNames.push('High');
+        columnNames.push('Low');
+
+        for (var i = 0; i < dateStringArray.length; ++i) {
+            let row: string[] = new Array();
+        }
         return new DataFrame<number, any>({
             rows: rows,
             columnNames: columnNames,
