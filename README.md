@@ -15,6 +15,6 @@ This library contains the redis extensions to Data-Forge.
 
 See [Data-Forge docs](https://github.com/data-forge/data-forge-ts) and [guide](https://github.com/data-forge/data-forge-ts/blob/master/docs/guide.md) for details on how to use.
 
-#
+## Maintainer
 
-
+[Eric Tang](https://twitter.com/_e_tang) @ [TYO Lab](http://tyo.com.au)

@@ -6,9 +6,10 @@ import { Client } from '_debugger';
 const redis = require('redis');
 
 export interface RedisOptions {
-    host: string;
-    port: number;
-    password: string;
+    host?: string;
+    port?: number;
+    password?: string;
+    database?: number;
 }
 
 /**
@@ -23,8 +24,13 @@ export class RedisClient {
     static instance: any;
 
     constructor(options?: RedisOptions | null | undefined) {
-        if (!RedisClient.instance)
+        if (!RedisClient.instance) {
             RedisClient.instance = redis.createClient(options);
+
+            if (options && options.database) {
+                this.select(options.database);
+            }
+        }
     }
 
     // @ts-ignore
@@ -57,6 +63,10 @@ export class RedisClient {
             console.error(err);
         }
         return null;
+    }
+
+    async select (db: number) {
+        await this.promisify(RedisClient.instance.select, db);
     }
 
     async exists (key: string) {
