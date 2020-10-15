@@ -51,6 +51,7 @@ export class RedisClient {
     
                 func.apply(RedisClient.instance, args_array);
             });
+            return retValue;
         }
         catch (err) {
             console.error(err);
@@ -89,11 +90,11 @@ export class RedisClient {
 
         let fromDay = date.getDate();
         let fromYear = date.getFullYear();
-        let fromMonth = date.getMonth();
+        let fromMonth = date.getMonth() + 1;
 
         let toDay = toDate.getDate();
         let toYear = toDate.getFullYear();
-        let toMonth = toDate.getMonth();
+        let toMonth = toDate.getMonth() + 1;
 
         for (var x = fromYear; x <= toYear; ++x) {
             for (var y = fromMonth; y <= toMonth; ++y) {
@@ -136,7 +137,7 @@ export class RedisClient {
                 }
 
                 for (var z = fromThisDate; z <= toThisDate; ++z) {
-                    array.push(x + '-' + y + '-' + z);
+                    array.push('' + x + (y > 9 ? '' : '0') + y + (z > 9 ? '' : '0') + z);
                 }
             }
         }
@@ -167,6 +168,8 @@ export class RedisClient {
                 row.push(obj.L);
                 row.push(obj.V);
             }
+
+            rows.push(row);
         }
         return new DataFrame<number, any>({
             rows: rows,
