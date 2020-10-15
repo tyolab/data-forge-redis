@@ -180,9 +180,9 @@ export class RedisClient {
                 row.push(obj.H);
                 row.push(obj.L);
                 row.push(obj.V);
-            }
 
-            rows.push(row);
+                rows.push(row);
+            }
         }
         return new DataFrame<number, any>({
             rows: rows,
