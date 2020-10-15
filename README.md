@@ -7,7 +7,7 @@ Supposely, we have a series of data that has been stored in the redis database.
 Unlike the module of data-forge-fs, the data structure of the securities is constructed as follows:
 
 KEY                 FIELD               VALUE
-[PREFIX]SYMBOL      YYYY-MM-DD          {"O": XX.XXX, "C": XX.XXX, "H": XX.XXX, "L": XX.XXX}
+[PREFIX]SYMBOL      YYYYMMDD          {"O": XX.XXX, "C": XX.XXX, "H": XX.XXX, "L": XX.XXX}
 
 This library contains the redis extensions to Data-Forge.
 

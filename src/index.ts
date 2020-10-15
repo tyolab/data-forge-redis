@@ -149,15 +149,18 @@ export class RedisClient {
         let dateStringArray = RedisClient.getDateStringArray(fromDate, toDate);
         let rows: string[][] = new Array();
         let columnNames: string[] = new Array();
-        columnNames.push('Open');
-        columnNames.push('Close');
-        columnNames.push('High');
-        columnNames.push('Low');
-        columnNames.push('Volume');
+        columnNames.push('date');
+        columnNames.push('open');
+        columnNames.push('close');
+        columnNames.push('high');
+        columnNames.push('low');
+        columnNames.push('volume');
 
         for (var i = 0; i < dateStringArray.length; ++i) {
             let row: string[] = new Array();
             let field = dateStringArray[i];
+
+            row.push(field);
 
             let tmpStr:any = await this.hget(key, field);
             if (tmpStr) {
