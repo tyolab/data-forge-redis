@@ -28,7 +28,7 @@
     "author": "eric@tyo.com.au",
     "license": "MIT",
     "bugs": {
-        "url": "https://github.com/tyolab/data-forge-fs/issues"
+        "url": "https://github.com/tyolab/data-forge-redis/issues"
     },
     "homepage": "https://github.com/tyolab/data-forge-redis#readme",
     "dependencies": {
