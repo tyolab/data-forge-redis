@@ -11,6 +11,27 @@ KEY                 FIELD               VALUE
 
 This library contains the redis extensions to Data-Forge.
 
+The example code is listed as follows:
+
+```nodejs
+const dataForge = require('data-forge');
+const dataForgeRedis = require('data-forge-redis');
+require('data-forge-indicators'); 
+
+const options = {
+    host: localhost,
+    port: 3679,
+    database: 11
+};
+
+// async call, please use it in a async function, otherwise it will cause issues
+var dataFrame = await dataForgeRedis.fromRedis(options).load(keyStr, fromDate, toDate);
+var inputSeries = dataFrame.parseDates('date').setIndex('date').renameSeries({date: 'time'});
+
+
+
+```
+
 [Click here for Data-Forge FS API docs](https://data-forge.github.io/data-forge-fs/index.html)
 
 See [Data-Forge docs](https://github.com/data-forge/data-forge-ts) and [guide](https://github.com/data-forge/data-forge-ts/blob/master/docs/guide.md) for details on how to use.
