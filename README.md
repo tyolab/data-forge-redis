@@ -18,6 +18,10 @@ const dataForge = require('data-forge');
 const dataForgeRedis = require('data-forge-redis');
 require('data-forge-indicators'); 
 
+var toDate = new Date();
+toDate.setDate(toDate.getDate() - 8); // get the last 7 days data, today's data is not imported
+var fromDate = new Date(toDate.getTime());
+
 const options = {
     host: localhost,
     port: 3679,

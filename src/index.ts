@@ -92,19 +92,19 @@ export class RedisClient {
         return value || fallbackValue;
     }
 
-    static getDateStringArray (date : Date, toDate: Date) {
+    static getDateStringArray (startDate : Date, endDate: Date) {
         let array: string[] = new Array();
 
-        if (toDate < date)
+        if (endDate < startDate)
             new Error("The from-date should be before the to-date");
 
-        let fromDay = date.getDate();
-        let fromYear = date.getFullYear();
-        let fromMonth = date.getMonth() + 1;
+        let fromDate = startDate.getDate();
+        let fromYear = startDate.getFullYear();
+        let fromMonth = startDate.getMonth() + 1;
 
-        let toDay = toDate.getDate();
-        let toYear = toDate.getFullYear();
-        let toMonth = toDate.getMonth() + 1;
+        let toDate = endDate.getDate();
+        let toYear = endDate.getFullYear();
+        let toMonth = endDate.getMonth() + 1;
 
         for (var x = fromYear; x <= toYear; ++x) {
             for (var y = fromMonth; y <= toMonth; ++y) {
@@ -142,8 +142,12 @@ export class RedisClient {
                 let fromThisDate = 1;
                 let toThisDate = maxDate;
                 if (y == toMonth && x == toYear) {
-                    fromThisDate = fromDay;
-                    toThisDate = toDay;
+                    fromThisDate = 1;
+                    toThisDate = toDate;
+                }
+                else if (y == fromMonth && x == fromYear) {
+                    fromThisDate = fromDate;
+                    toThisDate = maxDate;
                 }
 
                 for (var z = fromThisDate; z <= toThisDate; ++z) {

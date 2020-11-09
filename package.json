@@ -1,6 +1,6 @@
 {
     "name": "data-forge-redis",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "description": "This library contains the redis extensions to Data-Forge that allow it to directly read dat from redis database in Node.js.",
     "main": "build/index.js",
     "types": "build/index.d.ts",
@@ -24,7 +24,7 @@
         "type": "git",
         "url": "git+https://github.com/tyolab/data-forge-redis.git"
     },
-    "keywords": [],
+    "keywords": ["data-forge", "redis", "extension", "trading"],
     "author": "eric@tyo.com.au",
     "license": "MIT",
     "bugs": {
