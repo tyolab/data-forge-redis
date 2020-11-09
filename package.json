@@ -24,7 +24,12 @@
         "type": "git",
         "url": "git+https://github.com/tyolab/data-forge-redis.git"
     },
-    "keywords": ["data-forge", "redis", "extension", "trading"],
+    "keywords": [
+        "data-forge",
+        "redis",
+        "extension",
+        "trading"
+    ],
     "author": "eric@tyo.com.au",
     "license": "MIT",
     "bugs": {
@@ -45,7 +50,7 @@
         "mock-require": "^3.0.2",
         "nyc": "^13.0.1",
         "ts-node": "3.3.0",
-        "typedoc": "^0.12.0",
+        "typedoc": "^0.19.2",
         "typescript": "2.5.2"
     },
     "nyc": {
