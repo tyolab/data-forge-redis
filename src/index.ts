@@ -191,10 +191,13 @@ export class RedisClient {
                             codeChange.to_date = tomorrowDate;
 
                         // we only need to take the first one that is overlapped with the given range
-                        if (!codeChange.to_date || toDate < codeChange.to_date) {
+                        if (!codeChange.to_date || (toDate < codeChange.to_date && toDate > codeChange.from_date)) {
                             symbolDates.unshift({symbol: symbolChange, fromDate: codeChange.from_date, toDate: toDate});
-                            toDate = new Date(codeChange.from_date.getTime());
-                            toDate.setDate(toDate.getDate() - 1);
+
+                            if (toDate > codeChange.from_date) {
+                                toDate = new Date(codeChange.from_date.getTime());
+                                toDate.setDate(toDate.getDate() - 1);
+                            }
                             symbolChange = codeChange.from;
                             break;
                         }
