@@ -12,6 +12,12 @@ export interface RedisOptions {
     database?: number;
 }
 
+interface SymbolDate {
+    symbol: string;
+    fromDate: Date;
+    toDate: Date;
+}
+
 /**
  * Reads from redis data source asynchonrously to a dataframe.
  */
@@ -34,17 +40,11 @@ export class RedisClient {
     }
 
     // @ts-ignore
-    async promisify (...args) {
+    async promisify (...args): any {
         var args_array = [...args];
         var func = args_array.shift();
-        // var key = args[0];
-        // var field = args[1];
-        // var targetValue = null;
-        // if (args.length >= 3)
-        //     targetValue = args[2];
-    
-        try {
-            var retValue = await new Promise((resolve, reject) => {
+
+        let retValue = await new Promise((resolve, reject) => {
     
                 // @ts-ignore
                 var cb = function (err, value) {
@@ -57,12 +57,8 @@ export class RedisClient {
     
                 func.apply(RedisClient.instance, args_array);
             });
-            return retValue;
-        }
-        catch (err) {
-            console.error(err);
-        }
-        return null;
+
+        return retValue;
     }
 
     async select (db: number) {
@@ -85,6 +81,11 @@ export class RedisClient {
     async hget (key: string, field: string, fallbackValue?: string | undefined) {
         var value = await this.promisify(RedisClient.instance.hget, key, field);
         return value || fallbackValue;
+    }
+
+    async hgetall (key: string) {
+        var value: string[]  = await this.promisify(RedisClient.instance.hgetall, key);
+        return value;
     }
     
     async get (key: string, fallbackValue: string) {
@@ -158,9 +159,84 @@ export class RedisClient {
         return array;
     }
 
-    async load (key: string, fromDate: Date, toDate: Date, formater?: any) {
+    async load (symbol: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string, formater?: any) {
+        let symbolDates: any[] = [];
+        let tomorrowDate = new Date();
+        tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+
         // supposely the data string is in DDDD-MM-DD format
         let dateStringArray = RedisClient.getDateStringArray(fromDate, toDate);
+
+        // because there are lots of code changes, we need to consider that too
+        // for example, on 30 Nov, ASX's FXL was changed to HUM
+        // backward looking
+        if (codeChangeKeyPrefix) {
+            // we have to have a different key style for the code change right
+            
+            let symbolChange = symbol;
+
+            while (symbolChange) {
+                let codeChangeKey = codeChangeKeyPrefix + symbolChange;
+                let codeChangesArray = await this.hgetall(codeChangeKey);
+
+                if (codeChangesArray && codeChangesArray.length > 0) {
+                    // we need to sort the ranges first
+                    // the code change with the older dates need to be put in the front
+                    codeChangesArray.sort((a: any, b: any) => (a.from_date > b.from_date) ? 1: -1);
+
+                    // only one is valid becuase in any given period of a time, there is only one code per stock possible
+                    for (var i = 0; i < codeChangesArray.length; ++i) {
+                        let codeChange: any = codeChangesArray[i];
+                        if (!codeChange.to_date)
+                            codeChange.to_date = tomorrowDate;
+
+                        // we only need to take the first one that is overlapped with the given range
+                        if (!codeChange.to_date || toDate < codeChange.to_date) {
+                            symbolDates.unshift({symbol: symbolChange, fromDate: codeChange.from_date, toDate: toDate});
+                            toDate = new Date(codeChange.from_date.getTime());
+                            toDate.setDate(toDate.getDate() - 1);
+                            symbolChange = codeChange.from;
+                            break;
+                        }
+                        // if (!fromDate && !toDate)
+                        //     break;
+                        // we only need the one overlapped
+                        // let codeChangeFromDate = codeChange.from_date;
+                        // if (!codeChangeFromDate)
+                        // the from date never be null
+                        // and the code change rang must be within the date selection range
+                        // if (fromDate >= codeChange.from_date && (!codeChange.to_date || toDate < codeChange.to_date)) {
+                        //     // within range
+                        //     // use only the new symbol, and there is no finite date yet
+                        //     symbolDates.unshift({symbol: codeChange.to, fromDate: fromDate, toDate: toDate});
+                        //     break;
+                        // }
+                        // else if (toDate < codeChange.from_date && fromDate < codeChange.from_date) {
+                        //     // use only the old symbol
+                        //     // but we need to check if old symbol has code change before
+                        //     symbolChange = codeChange.from;
+                        // }
+                        // else {
+                        //     // use both symbols
+                        //     symbolDates.unshift({symbol: codeChange.to, from_date: codeChange.from_date, to_date: toDate});
+                        //     // symbolDates.unshift({symbol: codeChange.from, from_date: codeChange.from_date, to_date: toDate});
+
+                        //     // but we need to check if old symbol has code change before
+                        //     toDate = codeChange.from_date;
+                        //     toDate.setDate(toDate.getDate() - 1);
+                        //     symbolChange = codeChange.from;
+                        // }
+                    }
+                }
+                else {
+                    // so no more code changes
+                    symbolDates.unshift({symbol: symbolChange, fromDate: fromDate, toDate: toDate});
+                    break;
+                }
+                
+            }
+        }
+
         let rows: string[][] = new Array();
         let columnNames: string[] = new Array();
         columnNames.push('date');
@@ -170,13 +246,15 @@ export class RedisClient {
         columnNames.push('low');
         columnNames.push('volume');
 
+        let keyStr = (keyPrefix || '') + symbol;
         for (var i = 0; i < dateStringArray.length; ++i) {
-            let row: string[] = new Array();
+            let row: 
+            string[] = new Array();
             let field = dateStringArray[i];
 
             row.push(field);
 
-            let tmpStr:any = await this.hget(key, field);
+            let tmpStr:any = await this.hget(keyStr, field);
             if (tmpStr) {
                 let obj: any = JSON.parse(tmpStr);
                 row.push(obj.O);
@@ -209,7 +287,7 @@ class AsyncRedisDataLoader implements IAsyncRedisDataLoader {
     }
 
 
-    async load (key: string, fromDate: Date, toDate: Date): Promise<IDataFrame<number, any>> {
+    async load (key: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string): Promise<IDataFrame<number, any>> {
         return AsyncRedisDataLoader.client.load(key, fromDate, toDate);
     } 
 
