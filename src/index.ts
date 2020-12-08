@@ -257,8 +257,8 @@ export class RedisClient {
         columnNames.push('low');
         columnNames.push('volume');
 
-        for (var i = 0; i < symbolDates.length; ++i) {
-            let symbolDate = symbolDates[i];
+        for (var x = 0; x < symbolDates.length; ++x) {
+            let symbolDate = symbolDates[x];
             // supposely the data string is in DDDD-MM-DD format
             let dateStringArray = RedisClient.getDateStringArray(symbolDate.fromDate, symbolDate.toDate);
             let keyStr = (keyPrefix || '') + symbolDate.symbol;
