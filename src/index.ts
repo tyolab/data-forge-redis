@@ -22,7 +22,7 @@ interface SymbolDate {
  * Reads from redis data source asynchonrously to a dataframe.
  */
 export interface IAsyncRedisDataLoader {
-    load (key: string, fromDate: Date, toDate: Date): Promise<IDataFrame<number, any>>;
+    load (symbol: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string): Promise<IDataFrame<number, any>>;
     write (key: string, field: string, value: string): IAsyncRedisDataLoader;
 }
 
@@ -40,7 +40,7 @@ export class RedisClient {
     }
 
     // @ts-ignore
-    async promisify (...args): any {
+    async promisify (...args): Promise<any> {
         var args_array = [...args];
         var func = args_array.shift();
 
@@ -159,13 +159,12 @@ export class RedisClient {
         return array;
     }
 
-    async load (symbol: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string, formater?: any) {
+    async load(symbol: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string) {
+        keyPrefix = keyPrefix || '';
+
         let symbolDates: any[] = [];
         let tomorrowDate = new Date();
         tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-
-        // supposely the data string is in DDDD-MM-DD format
-        let dateStringArray = RedisClient.getDateStringArray(fromDate, toDate);
 
         // because there are lots of code changes, we need to consider that too
         // for example, on 30 Nov, ASX's FXL was changed to HUM
@@ -173,20 +172,27 @@ export class RedisClient {
         if (codeChangeKeyPrefix) {
             // we have to have a different key style for the code change right
             
-            let symbolChange = symbol;
+            let symbolChange:string | null = symbol;
 
             while (symbolChange) {
                 let codeChangeKey = codeChangeKeyPrefix + symbolChange;
-                let codeChangesArray = await this.hgetall(codeChangeKey);
 
-                if (codeChangesArray && codeChangesArray.length > 0) {
+                // the returned value will be in dict format
+                let codeChanges = await this.hgetall(codeChangeKey);
+                var codeChangesArray:any[] = [];
+                if (codeChanges)
+                    codeChangesArray = Object.keys(codeChanges).map((key) => codeChanges[key]);
+
+                if (codeChangesArray.length > 0) {
                     // we need to sort the ranges first
                     // the code change with the older dates need to be put in the front
                     codeChangesArray.sort((a: any, b: any) => (a.from_date > b.from_date) ? 1: -1);
 
                     // only one is valid becuase in any given period of a time, there is only one code per stock possible
                     for (var i = 0; i < codeChangesArray.length; ++i) {
-                        let codeChange: any = codeChangesArray[i];
+                        let codeChange: any = JSON.parse(codeChangesArray[i]);
+                        if (codeChange.from_date && typeof codeChange.from_date == 'string')
+                            codeChange.from_date = new Date(codeChange.from_date);
                         if (!codeChange.to_date)
                             codeChange.to_date = tomorrowDate;
 
@@ -234,11 +240,13 @@ export class RedisClient {
                 else {
                     // so no more code changes
                     symbolDates.unshift({symbol: symbolChange, fromDate: fromDate, toDate: toDate});
-                    break;
+                    symbolChange = null;
                 }
                 
             }
         }
+        else
+            symbolDates.unshift({symbol: symbol, fromDate: fromDate, toDate: toDate});
 
         let rows: string[][] = new Array();
         let columnNames: string[] = new Array();
@@ -249,26 +257,32 @@ export class RedisClient {
         columnNames.push('low');
         columnNames.push('volume');
 
-        let keyStr = (keyPrefix || '') + symbol;
-        for (var i = 0; i < dateStringArray.length; ++i) {
-            let row: 
-            string[] = new Array();
-            let field = dateStringArray[i];
+        for (var i = 0; i < symbolDates.length; ++i) {
+            let symbolDate = symbolDates[i];
+            // supposely the data string is in DDDD-MM-DD format
+            let dateStringArray = RedisClient.getDateStringArray(symbolDate.fromDate, symbolDate.toDate);
+            let keyStr = (keyPrefix || '') + symbolDate.symbol;
+            for (var i = 0; i < dateStringArray.length; ++i) {
 
-            row.push(field);
+                let field = dateStringArray[i];
 
-            let tmpStr:any = await this.hget(keyStr, field);
-            if (tmpStr) {
-                let obj: any = JSON.parse(tmpStr);
-                row.push(obj.O);
-                row.push(obj.C);
-                row.push(obj.H);
-                row.push(obj.L);
-                row.push(obj.V);
+                let tmpStr:any = await this.hget(keyStr, field);
+                if (tmpStr) {
+                    let row: 
+                    string[] = new Array();
+                    row.push(field);
+                    let obj: any = JSON.parse(tmpStr);
+                    row.push(obj.O);
+                    row.push(obj.C);
+                    row.push(obj.H);
+                    row.push(obj.L);
+                    row.push(obj.V);
 
-                rows.push(row);
+                    rows.push(row);
+                }
             }
         }
+
         return new DataFrame<number, any>({
             rows: rows,
             columnNames: columnNames,
@@ -290,47 +304,15 @@ class AsyncRedisDataLoader implements IAsyncRedisDataLoader {
     }
 
 
-    async load (key: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string): Promise<IDataFrame<number, any>> {
-        return AsyncRedisDataLoader.client.load(key, fromDate, toDate);
+    async load(symbol: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string): Promise<IDataFrame<number, any>> {
+        return AsyncRedisDataLoader.client.load(symbol, fromDate, toDate, keyPrefix, codeChangeKeyPrefix);
     } 
 
-    write (key: string, field: string, value: string): IAsyncRedisDataLoader {
+    write(key: string, field: string, value: string): IAsyncRedisDataLoader {
         AsyncRedisDataLoader.client.hset(key, field, value);
         return this;
     }
 }
-
-/**
- * 
- */
-// export interface ISyncRedisReader {
-
-//     load (key: string, fromDate: Date, toDate: Date): IDataFrame<number, any>;
-// }
-
-// /**
-//  * @hidden
-//  * Reads a file synchonrously to a dataframe.
-//  */
-// class SyncRedisDataLoader implements ISyncRedisReader {
-
-//     static client: RedisClient;
-
-//     constructor(options: RedisOptions) {
-//         if (!SyncRedisDataLoader.client)
-//             SyncRedisDataLoader.client = new RedisClient(options);
-//     }
-
-//     load (key: string, fromDate: Date, toDate: Date): IDataFrame<number, any> {
-//         async function syncLoad() {
-//             let result: IDataFrame<number, any> = await SyncRedisDataLoader.client.load(key, fromDate, toDate);
-//             return result;
-//         }
-//         // @ts-ignore
-//         let result: IDataFrame<number, any> = syncLoad();
-//         return result;
-//     } 
-// }
 
 //
 // Augmuent the data-forge namespace to add new functions.
@@ -339,17 +321,11 @@ declare module "data-forge" {
 
     function fromRedis (options?: RedisOptions | null | undefined): IAsyncRedisDataLoader;
 
-    //export function fromRedisSync (filePath: string): ISyncRedisReader    
 }
 
 export function fromRedis (options?: RedisOptions | null | undefined): IAsyncRedisDataLoader {
     return new AsyncRedisDataLoader(options);
 }
-
-// /** */
-// export function fromRedisSync(options: RedisOptions): ISyncRedisReader {
-//     return new SyncRedisDataLoader(options);
-// }
 
 (dataForge as any).fromRedis = fromRedis;
 // (dataForge as any).fromRedisSync = fromRedisSync;

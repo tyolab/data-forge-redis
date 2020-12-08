@@ -29,7 +29,11 @@ const options = {
 };
 
 // async call, please use it in a async function, otherwise it will cause issues
-var dataFrame = await dataForgeRedis.fromRedis(options).load(keyStr, fromDate, toDate);
+var dataFrame = await dataForgeRedis.fromRedis(options).load(symbol, fromDate, toDate);
+
+// for symbol that is stored with a prefix
+// var dataFrame = await dataForgeRedis.fromRedis(options).load(symbol, fromDate, toDate, 'asx:price:');
+
 var inputSeries = dataFrame.parseDates('date').setIndex('date').renameSeries({date: 'time'});
 
 
@@ -39,6 +43,13 @@ var inputSeries = dataFrame.parseDates('date').setIndex('date').renameSeries({da
 [Click here for Data-Forge FS API docs](https://data-forge.github.io/data-forge-fs/index.html)
 
 See [Data-Forge docs](https://github.com/data-forge/data-forge-ts) and [guide](https://github.com/data-forge/data-forge-ts/blob/master/docs/guide.md) for details on how to use.
+
+## For company code changes
+
+```
+// for symbol that is stored with a prefix and code changes data is stored with a prefix as well
+var dataFrame = await dataForgeRedis.fromRedis(options).load(symbol, fromDate, toDate, 'asx:price:', 'asx:cc');
+```
 
 ## Maintainer
 
