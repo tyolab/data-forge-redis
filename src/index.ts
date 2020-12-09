@@ -142,13 +142,11 @@ export class RedisClient {
 
                 let fromThisDate = 1;
                 let toThisDate = maxDate;
-                if (y == toMonth && x == toYear) {
-                    fromThisDate = 1;
-                    toThisDate = toDate;
-                }
-                else if (y == fromMonth && x == fromYear) {
+                if (y == fromMonth && x == fromYear) {
                     fromThisDate = fromDate;
-                    toThisDate = maxDate;
+                }
+                if (y == toMonth && x == toYear) {
+                    toThisDate = toDate;
                 }
 
                 for (var z = fromThisDate; z <= toThisDate; ++z) {
@@ -189,7 +187,8 @@ export class RedisClient {
                     codeChangesArray.sort((a: any, b: any) => (a.from_date > b.from_date) ? 1: -1);
 
                     // only one is valid becuase in any given period of a time, there is only one code per stock possible
-                    for (var i = 0; i < codeChangesArray.length; ++i) {
+                    var i = 0;
+                    for (; i < codeChangesArray.length; ++i) {
                         let codeChange: any = JSON.parse(codeChangesArray[i]);
                         if (codeChange.from_date && typeof codeChange.from_date == 'string')
                             codeChange.from_date = new Date(codeChange.from_date);
@@ -197,13 +196,19 @@ export class RedisClient {
                             codeChange.to_date = tomorrowDate;
 
                         // we only need to take the first one that is overlapped with the given range
-                        if (!codeChange.to_date || (toDate < codeChange.to_date && toDate > codeChange.from_date)) {
+                        if (toDate < codeChange.to_date && toDate > codeChange.from_date) {
                             symbolDates.unshift({symbol: symbolChange, fromDate: codeChange.from_date, toDate: toDate});
 
                             if (toDate > codeChange.from_date) {
                                 toDate = new Date(codeChange.from_date.getTime());
                                 toDate.setDate(toDate.getDate() - 1);
                             }
+                            symbolChange = codeChange.from;
+                            break;
+                        }
+                        // the given start date and to_date is out of the code change range
+                        // if there is only one entry we assume it only has been changed once we will just use the previous code
+                        else if (codeChangesArray.length == 1) {
                             symbolChange = codeChange.from;
                             break;
                         }
@@ -236,10 +241,18 @@ export class RedisClient {
                         //     symbolChange = codeChange.from;
                         // }
                     }
+
+                    if (i == codeChangesArray.length) {
+                        // we didn't find anything
+                        symbolDates.unshift({symbol: symbolChange, fromDate: fromDate, toDate: toDate});
+                        symbolChange = null;
+                    }
                 }
                 else {
                     // so no more code changes
                     symbolDates.unshift({symbol: symbolChange, fromDate: fromDate, toDate: toDate});
+
+                    // reset the symbol change to empty
                     symbolChange = null;
                 }
                 
