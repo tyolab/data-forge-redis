@@ -108,7 +108,16 @@ export class RedisClient {
         let toMonth = endDate.getMonth() + 1;
 
         for (var x = fromYear; x <= toYear; ++x) {
-            for (var y = fromMonth; y <= toMonth; ++y) {
+            let fromThisMonth = 1;
+            let toThisMonth = 12;
+            if (x == fromYear) {
+                fromThisMonth = fromMonth;
+            }
+            if (x == toYear) {
+                toThisMonth = toMonth;
+            }
+
+            for (var y = fromThisMonth; y <= toThisMonth; ++y) {
                 let maxDate = 31;
                 switch (y) {
                     // case 1:
@@ -197,7 +206,10 @@ export class RedisClient {
 
                         // we only need to take the first one that is overlapped with the given range
                         if (toDate < codeChange.to_date && toDate > codeChange.from_date) {
-                            symbolDates.unshift({symbol: symbolChange, fromDate: codeChange.from_date, toDate: toDate});
+                            // if the code change from day is before the from date of the given range
+                            let thisDate = (codeChange.from_date < fromDate) ? fromDate : codeChange.from_date;
+
+                            symbolDates.unshift({symbol: symbolChange, fromDate: thisDate, toDate: toDate});
 
                             if (toDate > codeChange.from_date) {
                                 toDate = new Date(codeChange.from_date.getTime());
@@ -209,7 +221,11 @@ export class RedisClient {
                         // the given start date and to_date is out of the code change range
                         // if there is only one entry we assume it only has been changed once we will just use the previous code
                         else if (codeChangesArray.length == 1) {
-                            symbolChange = codeChange.from;
+                            // if the code change is only for the company name, but the code is actually the same, so not to worry
+                            if (codeChange.from === symbolChange)
+                                symbolChange = null;
+                            else
+                                symbolChange = codeChange.from;
                             break;
                         }
                         // if (!fromDate && !toDate)
