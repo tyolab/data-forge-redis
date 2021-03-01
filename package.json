@@ -1,6 +1,6 @@
 {
     "name": "data-forge-redis",
-    "version": "0.0.9",
+    "version": "0.0.10",
     "description": "This library contains the redis extensions to Data-Forge that allow it to directly read dat from redis database in Node.js.",
     "main": "build/index.js",
     "types": "build/index.d.ts",

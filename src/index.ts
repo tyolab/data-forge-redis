@@ -18,10 +18,15 @@ interface SymbolDate {
     toDate: Date;
 }
 
+export class RedisDataFrame <IndexT = number, ValueT = any> extends DataFrame <IndexT, ValueT> {
+    dateArray: string[] = new Array();
+}
+
 /**
  * Reads from redis data source asynchonrously to a dataframe.
  */
 export interface IAsyncRedisDataLoader {
+    loadByDateArray (symbol: string, dateArray: string[], keyPrefix?: string) : Promise<IDataFrame<number, any>>;
     load (symbol: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string): Promise<IDataFrame<number, any>>;
     write (key: string, field: string, value: string): IAsyncRedisDataLoader;
 }
@@ -166,6 +171,49 @@ export class RedisClient {
         return array;
     }
 
+    async loadByDateArray(symbol: string, dateStringArray: string[], keyPrefix?: string) {
+        let rows: string[][] = new Array();
+        let columnNames: string[] = new Array();
+        let keyStr = (keyPrefix || '') + symbol;
+        columnNames.push('date');
+        columnNames.push('open');
+        columnNames.push('close');
+        columnNames.push('high');
+        columnNames.push('low');
+        columnNames.push('volume');
+
+        for (var i = 0; i < dateStringArray.length; ++i) {
+
+            let field = dateStringArray[i];
+
+            let tmpStr:any = await this.hget(keyStr, field);
+
+            let row: string[] = new Array();
+            row.push(field);
+            if (tmpStr) {
+                let obj: any = JSON.parse(tmpStr);
+                row.push(obj.O);
+                row.push(obj.C);
+                row.push(obj.H);
+                row.push(obj.L);
+                row.push(obj.V);
+            }
+            else {
+                row.push("");
+                row.push("");
+                row.push("");
+                row.push("");
+                row.push("");
+            }
+            rows.push(row);
+        }
+
+        return new DataFrame<number, any>({
+            rows: rows,
+            columnNames: columnNames,
+        });
+    }
+
     async load(symbol: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string) {
         keyPrefix = keyPrefix || '';
 
@@ -286,6 +334,8 @@ export class RedisClient {
         columnNames.push('low');
         columnNames.push('volume');
 
+        let dateArray: string[] = [];
+
         for (var x = 0; x < symbolDates.length; ++x) {
             let symbolDate = symbolDates[x];
             // supposely the data string is in DDDD-MM-DD format
@@ -297,8 +347,9 @@ export class RedisClient {
 
                 let tmpStr:any = await this.hget(keyStr, field);
                 if (tmpStr) {
-                    let row: 
-                    string[] = new Array();
+                    dateArray.push(field);
+
+                    let row: string[] = new Array();
                     row.push(field);
                     let obj: any = JSON.parse(tmpStr);
                     row.push(obj.O);
@@ -312,10 +363,14 @@ export class RedisClient {
             }
         }
 
-        return new DataFrame<number, any>({
+        let dataFrame = new RedisDataFrame<number, any>({
             rows: rows,
             columnNames: columnNames,
         });
+
+        dataFrame.dateArray = dateArray;
+
+        return dataFrame;
     }
 } 
 
@@ -332,6 +387,9 @@ class AsyncRedisDataLoader implements IAsyncRedisDataLoader {
             AsyncRedisDataLoader.client = new RedisClient(options);
     }
 
+    async loadByDateArray(symbol: string, dateArray: string[], keyPrefix?: string): Promise<IDataFrame<number, any>> {
+        return AsyncRedisDataLoader.client.loadByDateArray(symbol, dateArray, keyPrefix);
+    } 
 
     async load(symbol: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string): Promise<IDataFrame<number, any>> {
         return AsyncRedisDataLoader.client.load(symbol, fromDate, toDate, keyPrefix, codeChangeKeyPrefix);
