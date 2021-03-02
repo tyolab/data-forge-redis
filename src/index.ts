@@ -230,6 +230,8 @@ export class RedisClient {
         let tomorrowDate = new Date();
         tomorrowDate.setDate(tomorrowDate.getDate() + 1);
 
+        let lastToDate = toDate;
+
         // because there are lots of code changes, we need to consider that too
         // for example, on 30 Nov, ASX's FXL was changed to HUM
         // backward looking
@@ -270,23 +272,31 @@ export class RedisClient {
                         // we only need to take the first one that is overlapped with the given range
                         // the given start date and to_date is out of the code change range
                         // if there is only one entry we assume it only has been changed once we will just use the previous code
-                        if (codeChangesArray.length == 1) {
+                        if (lastToDate < codeChange.to_date && lastToDate > codeChange.from_date) {
+                            // if the code change from day is before the from date of the given range
+                            let thisDate = (codeChange.from_date < fromDate) ? fromDate : codeChange.from_date;
+
+                            symbolDates.unshift({symbol: symbolChange, fromDate: thisDate, toDate: lastToDate});
+
+                            if (lastToDate > codeChange.from_date) {
+                                lastToDate = new Date(codeChange.from_date.getTime());
+                                lastToDate.setDate(codeChange.from_date.getDate() - 1);
+                            }
+
+                            if (fromDate < codeChange.from_date)
+                                symbolChange = codeChange.from;
+                            else // don't need to go any further as the requested day 
+                                symbolChange = null;
+                            break;
+                        }
+                        else if (codeChangesArray.length == 1) {
                             // if the code change is only for the company name, but the code is actually the same, so not to worry
                             if (codeChange.from === symbolChange) {
                                 symbolChange = null;
                             }
                             else {
                                 symbolChange = codeChange.from;
-
-                                if (!codeChange.from_date) {
-                                    // we don't know the from date
-                                    // we can't go any further
-                                    codeChange.from_date = fromDate;
-                                    symbolChange = null;
-                                }
                             }
-
-                            symbolDates.unshift({ symbol: codeChange.from, fromDate: codeChange.from_date, toDate: codeChange.to_date });
 
                             break;
                         }
@@ -296,20 +306,6 @@ export class RedisClient {
                             // we can't go any further
                             codeChange.from_date = fromDate;
                             symbolChange = null;
-                        }
-
-                        if (toDate < codeChange.to_date && toDate > codeChange.from_date) {
-                            // if the code change from day is before the from date of the given range
-                            let thisDate = (codeChange.from_date < fromDate) ? fromDate : codeChange.from_date;
-
-                            symbolDates.unshift({symbol: symbolChange, fromDate: thisDate, toDate: toDate});
-
-                            if (toDate > codeChange.from_date) {
-                                toDate = new Date(codeChange.from_date.getTime());
-                                toDate.setDate(toDate.getDate() - 1);
-                            }
-                            symbolChange = codeChange.from;
-                            break;
                         }
 
                         // if (!fromDate && !toDate)
