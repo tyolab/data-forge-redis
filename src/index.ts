@@ -191,12 +191,21 @@ export class RedisClient {
             let row: string[] = new Array();
             row.push(field);
             if (tmpStr) {
-                let obj: any = JSON.parse(tmpStr);
-                row.push(obj.O);
-                row.push(obj.C);
-                row.push(obj.H);
-                row.push(obj.L);
-                row.push(obj.V);
+                try {
+                    let obj: any = JSON.parse(tmpStr);
+                    row.push(obj.O);
+                    row.push(obj.C);
+                    row.push(obj.H);
+                    row.push(obj.L);
+                    row.push(obj.V);
+                }
+                catch(err) {
+                    row.push("");
+                    row.push("");
+                    row.push("");
+                    row.push("");
+                    row.push("");
+                }
             }
             else {
                 row.push("");
@@ -247,12 +256,48 @@ export class RedisClient {
                     var i = 0;
                     for (; i < codeChangesArray.length; ++i) {
                         let codeChange: any = JSON.parse(codeChangesArray[i]);
-                        if (codeChange.from_date && typeof codeChange.from_date == 'string')
-                            codeChange.from_date = new Date(codeChange.from_date);
+                        if (codeChange.from_date) {
+                            if (typeof codeChange.from_date == 'string')
+                                codeChange.from_date = new Date(codeChange.from_date);
+                        }
+                        else {
+                            codeChange.from_date = fromDate;
+                        }
+                        
                         if (!codeChange.to_date)
                             codeChange.to_date = tomorrowDate;
 
                         // we only need to take the first one that is overlapped with the given range
+                        // the given start date and to_date is out of the code change range
+                        // if there is only one entry we assume it only has been changed once we will just use the previous code
+                        if (codeChangesArray.length == 1) {
+                            // if the code change is only for the company name, but the code is actually the same, so not to worry
+                            if (codeChange.from === symbolChange) {
+                                symbolChange = null;
+                            }
+                            else {
+                                symbolChange = codeChange.from;
+
+                                if (!codeChange.from_date) {
+                                    // we don't know the from date
+                                    // we can't go any further
+                                    codeChange.from_date = fromDate;
+                                    symbolChange = null;
+                                }
+                            }
+
+                            symbolDates.unshift({ symbol: codeChange.from, fromDate: codeChange.from_date, toDate: codeChange.to_date });
+
+                            break;
+                        }
+
+                        if (!codeChange.from_date) {
+                            // we don't know the from date
+                            // we can't go any further
+                            codeChange.from_date = fromDate;
+                            symbolChange = null;
+                        }
+
                         if (toDate < codeChange.to_date && toDate > codeChange.from_date) {
                             // if the code change from day is before the from date of the given range
                             let thisDate = (codeChange.from_date < fromDate) ? fromDate : codeChange.from_date;
@@ -266,16 +311,7 @@ export class RedisClient {
                             symbolChange = codeChange.from;
                             break;
                         }
-                        // the given start date and to_date is out of the code change range
-                        // if there is only one entry we assume it only has been changed once we will just use the previous code
-                        else if (codeChangesArray.length == 1) {
-                            // if the code change is only for the company name, but the code is actually the same, so not to worry
-                            if (codeChange.from === symbolChange)
-                                symbolChange = null;
-                            else
-                                symbolChange = codeChange.from;
-                            break;
-                        }
+
                         // if (!fromDate && !toDate)
                         //     break;
                         // we only need the one overlapped
@@ -347,18 +383,27 @@ export class RedisClient {
 
                 let tmpStr:any = await this.hget(keyStr, field);
                 if (tmpStr) {
-                    dateArray.push(field);
 
                     let row: string[] = new Array();
-                    row.push(field);
-                    let obj: any = JSON.parse(tmpStr);
-                    row.push(obj.O);
-                    row.push(obj.C);
-                    row.push(obj.H);
-                    row.push(obj.L);
-                    row.push(obj.V);
 
-                    rows.push(row);
+                    try {
+                        let obj: any = JSON.parse(tmpStr);
+
+                        dateArray.push(field);
+
+                        row.push(field);
+                        row.push(obj.O);
+                        row.push(obj.C);
+                        row.push(obj.H);
+                        row.push(obj.L);
+                        row.push(obj.V);
+                        rows.push(row);
+                    }
+                    catch(err) {
+                        //
+                        console.error("Data format error, skipping date: " + field + " with data: " + tmpStr);
+                        console.error(err);
+                    }
                 }
             }
         }
