@@ -19,16 +19,23 @@ interface SymbolDate {
 }
 
 export class RedisDataFrame <IndexT = number, ValueT = any> extends DataFrame <IndexT, ValueT> {
+    symbol: string;
     dateArray: string[] = new Array();
+    fromDate: Date;
+    toDate: Date;
+    keyPrefix: string;
+    codeChangeKeyPrefix: string;
 }
 
 /**
  * Reads from redis data source asynchonrously to a dataframe.
  */
 export interface IAsyncRedisDataLoader {
-    loadByDateArray (symbol: string, dateArray: string[], keyPrefix?: string) : Promise<IDataFrame<number, any>>;
-    load (symbol: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string): Promise<IDataFrame<number, any>>;
+    loadByDateArray (symbol: string, dateArray: string[], keyPrefix?: string) : Promise<RedisDataFrame<number, any>>;
+    load (symbol: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string): Promise<RedisDataFrame<number, any>>;
     write (key: string, field: string, value: string): IAsyncRedisDataLoader;
+
+    update(oldDataFrame: RedisDataFrame<number, any>, toDate: Date): Promise<RedisDataFrame<number, any>>;
 }
 
 export class RedisClient {
@@ -45,25 +52,28 @@ export class RedisClient {
     }
 
     // @ts-ignore
-    async promisify (...args): Promise<any> {
+    promisify (...args): Promise<any> {
         var args_array = [...args];
         var func = args_array.shift();
 
-        let retValue = await new Promise((resolve, reject) => {
+        return new Promise((resolve, reject) => {
     
                 // @ts-ignore
                 var cb = function (err, value) {
-                    if (err) return reject(err);
+                    if (err) 
+                        return reject(err);
                 
                     resolve((value));
                 }
     
                 args_array.push(cb);
     
-                func.apply(RedisClient.instance, args_array);
-            });
-
-        return retValue;
+                try {
+                    func.apply(RedisClient.instance, args_array);
+                } catch (err) {
+                    reject(err);
+                }
+            })
     }
 
     async select (db: number) {
@@ -84,7 +94,13 @@ export class RedisClient {
     }
     
     async hget (key: string, field: string, fallbackValue?: string | undefined) {
-        var value = await this.promisify(RedisClient.instance.hget, key, field);
+        try {
+            var value = await this.promisify(RedisClient.instance.hget, key, field);
+        }
+        catch (err) {
+            console.log(err);
+            return fallbackValue;
+        }
         return value || fallbackValue;
     }
 
@@ -151,7 +167,9 @@ export class RedisClient {
                         maxDate = 30;
                         break;
                     // case 12:
-                    //     break;                                                                                                                        
+                    //     break;           
+                    default:
+                        break;
                 }
 
                 let fromThisDate = 1;
@@ -217,10 +235,37 @@ export class RedisClient {
             rows.push(row);
         }
 
-        return new DataFrame<number, any>({
+        let dataFrame = new RedisDataFrame<number, any>({
             rows: rows,
             columnNames: columnNames,
         });
+
+        dataFrame.symbol = symbol;
+        dataFrame.keyPrefix = keyPrefix;
+        dataFrame.dateArray = dateStringArray;
+
+        return dataFrame;
+    }
+
+    async update(oldDataFrame: RedisDataFrame<number, any>, toDate: Date) {
+        let fromDate = new Date(oldDataFrame.toDate.getTime());
+        fromDate.setDate(fromDate.getDate() + 1);
+
+        let dataFrame = await this.load(oldDataFrame.symbol, fromDate, toDate, oldDataFrame.keyPrefix, oldDataFrame.codeChangeKeyPrefix);
+
+        let tempDataFrame = oldDataFrame.merge(dataFrame);
+        let newDataFrame = new RedisDataFrame<number, any>({
+            columnNames: tempDataFrame.getColumnNames(),
+            rows: tempDataFrame.toRows( ),
+        });
+        newDataFrame.dateArray = oldDataFrame.dateArray.concat(dataFrame.dateArray);
+        newDataFrame.symbol = oldDataFrame.symbol;
+        newDataFrame.fromDate = fromDate;
+        newDataFrame.toDate = toDate;
+        newDataFrame.keyPrefix = oldDataFrame.keyPrefix;
+        newDataFrame.codeChangeKeyPrefix = oldDataFrame.codeChangeKeyPrefix;
+
+        return dataFrame;
     }
 
     async load(symbol: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string) {
@@ -285,7 +330,7 @@ export class RedisClient {
 
                             if (fromDate < codeChange.from_date)
                                 symbolChange = codeChange.from;
-                            else // don't need to go any further as the requested day 
+                            else // don't need to go any further as the requested from date is ahead of the code change date
                                 symbolChange = null;
                             break;
                         }
@@ -410,6 +455,11 @@ export class RedisClient {
         });
 
         dataFrame.dateArray = dateArray;
+        dataFrame.symbol = symbol;
+        dataFrame.fromDate = fromDate;
+        dataFrame.toDate = toDate;
+        dataFrame.keyPrefix = keyPrefix;
+        dataFrame.codeChangeKeyPrefix = codeChangeKeyPrefix;
 
         return dataFrame;
     }
@@ -428,11 +478,15 @@ class AsyncRedisDataLoader implements IAsyncRedisDataLoader {
             AsyncRedisDataLoader.client = new RedisClient(options);
     }
 
-    async loadByDateArray(symbol: string, dateArray: string[], keyPrefix?: string): Promise<IDataFrame<number, any>> {
+    update(oldDataFrame: RedisDataFrame<number, any>, toDate: Date): Promise<RedisDataFrame<number, any>> {
+        throw AsyncRedisDataLoader.client.update(oldDataFrame, toDate);
+    }
+
+    async loadByDateArray(symbol: string, dateArray: string[], keyPrefix?: string): Promise<RedisDataFrame<number, any>> {
         return AsyncRedisDataLoader.client.loadByDateArray(symbol, dateArray, keyPrefix);
     } 
 
-    async load(symbol: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string): Promise<IDataFrame<number, any>> {
+    async load(symbol: string, fromDate: Date, toDate: Date, keyPrefix?: string, codeChangeKeyPrefix?: string): Promise<RedisDataFrame<number, any>> {
         return AsyncRedisDataLoader.client.load(symbol, fromDate, toDate, keyPrefix, codeChangeKeyPrefix);
     } 
 
