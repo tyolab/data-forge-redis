@@ -2,7 +2,7 @@
 
 The redis module for use with [Data-Forge](https://github.com/data-forge/data-forge-ts) and recoded from [data-forge-fs](https://github.com/data-forge/data-forge-fs).
 
-Supposely, we have a series of data that has been stored in the redis database. 
+Supposedly, we have a series of data that has been stored in the redis database. 
 
 Unlike the module of data-forge-fs, the data structure of the securities is constructed as follows:
 
