@@ -337,6 +337,11 @@ export class RedisClient {
                         else if (codeChangesArray.length == 1) {
                             // if the code change is only for the company name, but the code is actually the same, so not to worry
                             if (codeChange.from === symbolChange) {
+                                // The code is unchanged, so the remaining (pre-change) range
+                                // still lives under this same code — load it. Without this
+                                // unshift the history before from_date was silently dropped
+                                // (and a non-overlapping record returned no data at all).
+                                symbolDates.unshift({symbol: symbolChange, fromDate: fromDate, toDate: lastToDate});
                                 symbolChange = null;
                             }
                             else {
