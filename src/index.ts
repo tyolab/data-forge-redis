@@ -36,19 +36,25 @@ export interface IAsyncRedisDataLoader {
     write (key: string, field: string, value: string): IAsyncRedisDataLoader;
 
     update(oldDataFrame: RedisDataFrame<number, any>, toDate: Date): Promise<RedisDataFrame<number, any>>;
+
+    get_client (): any;
 }
 
 export class RedisClient {
     static instance: any;
 
     constructor(options?: RedisOptions | null | undefined) {
-        if (!RedisClient.instance) {
+        if (!RedisClient.instance || !RedisClient.instance.connected) {
             RedisClient.instance = redis.createClient(options);
 
             if (options && options.database) {
                 this.select(options.database);
             }
         }
+    }
+
+    get_instance () {
+        return RedisClient.instance;
     }
 
     // @ts-ignore
@@ -78,6 +84,21 @@ export class RedisClient {
 
     async select (db: number) {
         await this.promisify(RedisClient.instance.select, db);
+    }
+
+    async flushdb () {
+        await this.promisify(RedisClient.instance.flushdb);
+    }
+
+    async del (key: string) {
+        await this.promisify(RedisClient.instance.del, key);
+    }
+
+    async delall (key: string) {
+        var keys = await this.promisify(RedisClient.instance.keys, key);
+        for (var i = 0; i < keys.length; ++i) {
+            await this.del(keys[i]);
+        }
     }
 
     async exists (key: string) {
@@ -498,6 +519,10 @@ class AsyncRedisDataLoader implements IAsyncRedisDataLoader {
     write(key: string, field: string, value: string): IAsyncRedisDataLoader {
         AsyncRedisDataLoader.client.hset(key, field, value);
         return this;
+    }
+
+    get_client () {
+        return AsyncRedisDataLoader.client;
     }
 }
 
