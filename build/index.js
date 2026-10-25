@@ -270,35 +270,24 @@ var RedisClient = /** @class */ (function () {
             }
             for (var y = fromThisMonth; y <= toThisMonth; ++y) {
                 var maxDate = 31;
+                // The 30-day months are April, June, September and November. July (7) was in this
+                // fall-through list, so every July the generated key array stopped at the 30th and
+                // `<year>0731` was NEVER requested from redis -- silently, every year, for every
+                // symbol. See src/index.ts for the full note.
                 switch (y) {
-                    // case 1:
-                    //     break;
                     case 2:
-                        // just to make things simple
+                        // just to make things simple; a 20xx0229 key simply will not exist in a
+                        // non-leap year, and a missing key is skipped harmlessly
                         maxDate = 29;
                         break;
-                    // case 3:
-                    //     break;
-                    case 4:
-                    // break;
-                    // case 5:
-                    //     break;
-                    case 6:
-                    // break;
-                    case 7:
-                    // break;
-                    // case 8:
-                    //     break;
-                    case 9:
-                    // break;
-                    // case 10:
-                    //     break;
-                    case 11:
+                    case 4: // April
+                    case 6: // June
+                    case 9: // September
+                    case 11: // November
                         maxDate = 30;
                         break;
-                    // case 12:
-                    //     break;           
                     default:
+                        // 1, 3, 5, 7 (July), 8, 10, 12 all have 31 days
                         break;
                 }
                 var fromThisDate = 1;

@@ -161,35 +161,29 @@ export class RedisClient {
 
             for (var y = fromThisMonth; y <= toThisMonth; ++y) {
                 let maxDate = 31;
+                // The 30-day months are April, June, September and November. July (7) was in this
+                // fall-through list, so every July the generated key array stopped at the 30th and
+                // `<year>0731` was NEVER requested from redis -- silently, every year, for every
+                // symbol. Found 2026-10-25: a fresh ASX load of BHP produced 206 bars against 207
+                // redis keys, the single difference being 20260731; the same date is missing for
+                // CBA and for every other name. The nightly append writes the newest bar directly
+                // and so does land 07-31 in the cache, which is why the cache held a bar that no
+                // reloaded series contained -- the source of the fleet-wide ma200 discontinuity
+                // around 31 July in 2024, 2025 and 2026.
                 switch (y) {
-                    // case 1:
-                    //     break;
                     case 2:
-                        // just to make things simple
+                        // just to make things simple; a 20xx0229 key simply will not exist in a
+                        // non-leap year, and a missing key is skipped harmlessly
                         maxDate = 29;
                         break;
-                    // case 3:
-                    //     break;
-                    case 4:
-                        // break;
-                    // case 5:
-                    //     break;
-                    case 6:
-                        // break;
-                    case 7:
-                        // break;
-                    // case 8:
-                    //     break;
-                    case 9:
-                        // break;
-                    // case 10:
-                    //     break;
-                    case 11:
+                    case 4:  // April
+                    case 6:  // June
+                    case 9:  // September
+                    case 11: // November
                         maxDate = 30;
                         break;
-                    // case 12:
-                    //     break;           
                     default:
+                        // 1, 3, 5, 7 (July), 8, 10, 12 all have 31 days
                         break;
                 }
 
