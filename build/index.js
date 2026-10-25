@@ -1,25 +1,19 @@
 "use strict";
 var __extends = (this && this.__extends) || (function () {
-    var extendStatics = function (d, b) {
-        extendStatics = Object.setPrototypeOf ||
-            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
-        return extendStatics(d, b);
-    };
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
     return function (d, b) {
-        if (typeof b !== "function" && b !== null)
-            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
         extendStatics(d, b);
         function __() { this.constructor = d; }
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
@@ -29,9 +23,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (g && (g = 0, op[0] && (_ = 0)), _) try {
-            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [op[0] & 2, t.value];
+        while (_) try {
+            if (f = 1, y && (t = y[op[0] & 2 ? "return" : op[0] ? "throw" : "next"]) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [0, t.value];
             switch (op[0]) {
                 case 0: case 1: t = op; break;
                 case 4: _.label++; return { value: op[1], done: false };
@@ -50,17 +44,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.fromRedis = exports.RedisClient = exports.RedisDataFrame = void 0;
 var data_forge_1 = require("data-forge");
 var dataForge = require("data-forge");
 var redis = require('redis');
@@ -92,7 +76,7 @@ var RedisClient = /** @class */ (function () {
         for (var _i = 0; _i < arguments.length; _i++) {
             args[_i] = arguments[_i];
         }
-        var args_array = __spreadArray([], args, true);
+        var args_array = args.slice();
         var func = args_array.shift();
         return new Promise(function (resolve, reject) {
             // @ts-ignore
@@ -273,7 +257,12 @@ var RedisClient = /** @class */ (function () {
                 // The 30-day months are April, June, September and November. July (7) was in this
                 // fall-through list, so every July the generated key array stopped at the 30th and
                 // `<year>0731` was NEVER requested from redis -- silently, every year, for every
-                // symbol. See src/index.ts for the full note.
+                // symbol. Found 2026-10-25: a fresh ASX load of BHP produced 206 bars against 207
+                // redis keys, the single difference being 20260731; the same date is missing for
+                // CBA and for every other name. The nightly append writes the newest bar directly
+                // and so does land 07-31 in the cache, which is why the cache held a bar that no
+                // reloaded series contained -- the source of the fleet-wide ma200 discontinuity
+                // around 31 July in 2024, 2025 and 2026.
                 switch (y) {
                     case 2:
                         // just to make things simple; a 20xx0229 key simply will not exist in a
@@ -283,7 +272,7 @@ var RedisClient = /** @class */ (function () {
                     case 4: // April
                     case 6: // June
                     case 9: // September
-                    case 11: // November
+                    case 11:// November
                         maxDate = 30;
                         break;
                     default:
@@ -414,13 +403,13 @@ var RedisClient = /** @class */ (function () {
                         symbolChange = symbol;
                         _loop_1 = function () {
                             var codeChangeKey, codeChanges, codeChange, thisDate;
-                            return __generator(this, function (_b) {
-                                switch (_b.label) {
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
                                     case 0:
                                         codeChangeKey = codeChangeKeyPrefix + symbolChange;
                                         return [4 /*yield*/, this_1.hgetall(codeChangeKey)];
                                     case 1:
-                                        codeChanges = _b.sent();
+                                        codeChanges = _a.sent();
                                         codeChangesArray = [];
                                         if (codeChanges)
                                             codeChangesArray = Object.keys(codeChanges).map(function (key) { return codeChanges[key]; });
@@ -453,7 +442,7 @@ var RedisClient = /** @class */ (function () {
                                                     }
                                                     if (fromDate < codeChange.from_date)
                                                         symbolChange = codeChange.from;
-                                                    else // don't need to go any further as the requested from date is ahead of the code change date
+                                                    else
                                                         symbolChange = null;
                                                     break;
                                                 }

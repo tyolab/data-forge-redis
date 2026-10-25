@@ -20,7 +20,7 @@ describe('DataFrame redis data source', function () {
             .write('test:SAM', '20470904', JSON.stringify({ H: 2.80, L: 2.30, O: 2.50, C: 2.78, V: 76435353 }))
             .load('test:SAM', fromDate, toDate)
             .then(function (dataFrame) {
-            (0, chai_1.expect)(dataFrame.count()).to.equal(7);
+            chai_1.expect(dataFrame.count()).to.equal(7);
             return redisDataFrameLoader
                 .write('test:SAM', '20470906', JSON.stringify({ H: 2.80, L: 2.30, O: 2.50, C: 2.78, V: 76435353 }))
                 .write('test:SAM', '20470907', JSON.stringify({ H: 2.90, L: 2.40, O: 2.60, C: 2.88, V: 83435353 }))
@@ -29,7 +29,7 @@ describe('DataFrame redis data source', function () {
                 .update(dataFrame, new Date('2047-09-09'));
         })
             .then(function (dataFrame) {
-            (0, chai_1.expect)(dataFrame.count()).to.equal(11);
+            chai_1.expect(dataFrame.count()).to.equal(11);
         });
     });
 });
