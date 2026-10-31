@@ -390,7 +390,7 @@ var RedisClient = /** @class */ (function () {
     };
     RedisClient.prototype.load = function (symbol, fromDate, toDate, keyPrefix, codeChangeKeyPrefix) {
         return __awaiter(this, void 0, void 0, function () {
-            var symbolDates, tomorrowDate, lastToDate, symbolChange, _loop_1, this_1, codeChangesArray, i, rows, columnNames, dateArray, x, symbolDate, dateStringArray, keyStr, i, field, tmpStr, row, obj, dataFrame;
+            var symbolDates, tomorrowDate, lastToDate, symbolChange, visited, _loop_1, this_1, codeChangesArray, i, state_1, rows, columnNames, dateArray, x, symbolDate, dateStringArray, keyStr, i, field, tmpStr, row, obj, dataFrame;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -401,11 +401,18 @@ var RedisClient = /** @class */ (function () {
                         lastToDate = toDate;
                         if (!codeChangeKeyPrefix) return [3 /*break*/, 4];
                         symbolChange = symbol;
+                        visited = new Set();
                         _loop_1 = function () {
                             var codeChangeKey, codeChanges, codeChange, thisDate;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
                                     case 0:
+                                        if (visited.has(symbolChange)) {
+                                            if (lastToDate >= fromDate)
+                                                symbolDates.unshift({ symbol: symbolChange, fromDate: fromDate, toDate: lastToDate });
+                                            return [2 /*return*/, "break"];
+                                        }
+                                        visited.add(symbolChange);
                                         codeChangeKey = codeChangeKeyPrefix + symbolChange;
                                         return [4 /*yield*/, this_1.hgetall(codeChangeKey)];
                                     case 1:
@@ -517,7 +524,9 @@ var RedisClient = /** @class */ (function () {
                         if (!symbolChange) return [3 /*break*/, 3];
                         return [5 /*yield**/, _loop_1()];
                     case 2:
-                        _a.sent();
+                        state_1 = _a.sent();
+                        if (state_1 === "break")
+                            return [3 /*break*/, 3];
                         return [3 /*break*/, 1];
                     case 3: return [3 /*break*/, 5];
                     case 4:

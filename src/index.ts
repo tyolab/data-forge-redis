@@ -299,8 +299,21 @@ export class RedisClient {
             // we have to have a different key style for the code change right
             
             let symbolChange:string | null = symbol;
+            // A ticker can be reused by the same company (SKS: Stokes -> ENE 2018-07-29 -> SKS
+            // 2020-12-08), so the chain can lead back to a code whose record was already consumed.
+            // Following it again ping-ponged SKS <-> ENE forever (an awaited loop, so the server
+            // stayed up but the load never returned -- found 2026-10-31 on a 10y ASX load). On a
+            // revisit the remaining range lives under that code: load it there and stop.
+            const visited = new Set<string>();
 
             while (symbolChange) {
+                if (visited.has(symbolChange)) {
+                    if (lastToDate >= fromDate)
+                        symbolDates.unshift({symbol: symbolChange, fromDate: fromDate, toDate: lastToDate});
+                    break;
+                }
+                visited.add(symbolChange);
+
                 let codeChangeKey = codeChangeKeyPrefix + symbolChange;
 
                 // the returned value will be in dict format
